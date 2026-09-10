@@ -1,5 +1,10 @@
 local Player = game:GetService("Players").LocalPlayer
+local Workspace = game:GetService("Workspace")
+local Themes = Workspace:FindFirstChild("Themes") or Workspace
 
+-------------------------------------------------
+-- Helper: Destroy instances
+-------------------------------------------------
 local function D(...)
   for _, v in ipairs({...}) do
     if v then
@@ -7,6 +12,34 @@ local function D(...)
     end
   end
 end
+
+-------------------------------------------------
+-- Helper: Custom Asset Downloader
+-------------------------------------------------
+local function importAudio(link, fileName)
+    if not isfile(fileName) then
+        writefile(fileName, game:HttpGet(link))
+    end
+    return getcustomasset(fileName)
+end
+
+-------------------------------------------------
+-- Custom Sound Assets (Raw Link)
+-------------------------------------------------
+local CustomChase = importAudio("https://raw.githubusercontent.com/ihatecuberunnersvr-jpg/Chase-theme-test/main/evilpastelloandevilupbeatchase.mp3", "evilpastelloandevilupbeatchase.mp3")
+
+-------------------------------------------------
+-- Custom Chase Theme Listener
+-------------------------------------------------
+Themes.ChildAdded:Connect(function(sound)
+    if sound:IsA("Sound") then
+        -- Updated Slasher Chase Theme ID
+        if sound.SoundId == "rbxassetid://86776053159699" then
+            sound.SoundId = CustomChase
+            sound:Play()
+        end
+    end
+end)
 
 -------------------------------------------------
 -- Helper: Find matching attachment
@@ -26,7 +59,6 @@ end
 local function addAccoutrement(character, accoutrement)
     accoutrement.Parent = character
     
-    -- Disable collision and query on all parts
     for _, part in ipairs(accoutrement:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = false
@@ -38,7 +70,6 @@ local function addAccoutrement(character, accoutrement)
     local handle = accoutrement:FindFirstChild("Handle")
     if not handle then return end
 
-    -- Clean old welds
     for _, v in pairs(handle:GetChildren()) do
         if v:IsA("Weld") or v:IsA("WeldConstraint") or v:IsA("Motor6D") then
             v:Destroy()
@@ -60,7 +91,6 @@ local function addAccoutrement(character, accoutrement)
         end
     end
 
-    -- Fallback weld to head or torso
     local target = character:FindFirstChild("Head") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
     if target then
         local weld = Instance.new("Weld")
@@ -122,7 +152,7 @@ local function DoMorph(P)
       end
     end
     
-    -- Set body colors: Pure Black body for all parts
+    -- Set body colors: Pure Black body
     local blackColor = Color3.fromRGB(0, 0, 0)
     local parts = {
       ["Head"] = blackColor,
