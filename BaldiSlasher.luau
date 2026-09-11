@@ -1,4 +1,6 @@
 local Player = game:GetService("Players").LocalPlayer
+local Workspace = game:GetService("Workspace")
+local Themes = Workspace:FindFirstChild("Themes") or Workspace
 
 local Jason = game:GetService("ReplicatedStorage").Assets.Killers.Jason
 local Slasher = game:GetService("ReplicatedStorage").Assets.Killers.Slasher
@@ -8,6 +10,47 @@ local JCon = require(Jason.Config)
 local SBeh = require(Slasher.Behavior)
 local JBeh = require(Jason.Behavior)
 
+-------------------------------------------------
+-- Helper: Destroy instances
+-------------------------------------------------
+local function D(...)
+  for _, v in ipairs({...}) do
+    if v then
+      v:Destroy() 
+    end
+  end
+end
+
+-------------------------------------------------
+-- Helper: Custom Asset Downloader
+-------------------------------------------------
+local function importAudio(link, fileName)
+    if not isfile(fileName) then
+        writefile(fileName, game:HttpGet(link))
+    end
+    return getcustomasset(fileName)
+end
+
+-------------------------------------------------
+-- Custom Sound Assets (Raw GitHub Link)
+-------------------------------------------------
+local CustomChase = importAudio("https://raw.githubusercontent.com/ihatecuberunnersvr-jpg/Chase-theme-test/main/audio_102916915231393.mp3", "baldi_chase.mp3")
+
+-------------------------------------------------
+-- Custom Chase Theme Listener
+-------------------------------------------------
+Themes.ChildAdded:Connect(function(sound)
+    if sound:IsA("Sound") then
+        if sound.SoundId == "rbxassetid://86776053159699" then
+            sound.SoundId = CustomChase
+            sound:Play()
+        end
+    end
+end)
+
+-------------------------------------------------
+-- Helper: Create Part / Weapon Welding
+-------------------------------------------------
 local function CreatePart(name, parent, weld, offset) 
   local Part = Instance.new("Part")
   Part.Name = name
@@ -53,78 +96,90 @@ local function Accs(AccsName, parent, Mesh, Texture, Scale, CF, Welded, Angle)
   return var_2
 end
 
+-------------------------------------------------
+-- Helper: Find matching attachment
+-------------------------------------------------
 local function findFirstMatchingAttachment(character, name)
-  for _, descendant in pairs(character:GetDescendants()) do
-    if descendant:IsA("Attachment") and descendant.Name == name then
-      return descendant
+    for _, descendant in pairs(character:GetDescendants()) do
+        if descendant:IsA("Attachment") and descendant.Name == name then
+            return descendant
+        end
     end
-  end
-  return nil
+    return nil
 end
 
+-------------------------------------------------
+-- Client-side accessory attachment
+-------------------------------------------------
 local function addAccoutrement(character, accoutrement)
-  accoutrement.Parent = character
-  
-  for _, part in ipairs(accoutrement:GetDescendants()) do
-    if part:IsA("BasePart") then
-      part.CanCollide = false
-      part.CanTouch = false
-      part.CanQuery = false
+    accoutrement.Parent = character
+    
+    for _, part in ipairs(accoutrement:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+            part.CanTouch = false
+            part.CanQuery = false
+        end
     end
-  end
 
-  local handle = accoutrement:FindFirstChild("Handle")
-  if not handle then return end
+    local handle = accoutrement:FindFirstChild("Handle")
+    if not handle then return end
 
-  for _, v in pairs(handle:GetChildren()) do
-    if v:IsA("Weld") or v:IsA("WeldConstraint") or v:IsA("Motor6D") then
-      v:Destroy()
+    for _, v in pairs(handle:GetChildren()) do
+        if v:IsA("Weld") or v:IsA("WeldConstraint") or v:IsA("Motor6D") then
+            v:Destroy()
+        end
     end
-  end
 
-  local accAttachment = handle:FindFirstChildOfClass("Attachment")
-  if accAttachment then
-    local charAttachment = findFirstMatchingAttachment(character, accAttachment.Name)
-    if charAttachment then
-      local weld = Instance.new("Weld")
-      weld.Name = "AccessoryWeld"
-      weld.Part0 = handle
-      weld.Part1 = charAttachment.Parent
-      weld.C0 = accAttachment.CFrame
-      weld.C1 = charAttachment.CFrame
-      weld.Parent = handle
-      return
+    local accAttachment = handle:FindFirstChildOfClass("Attachment")
+    if accAttachment then
+        local charAttachment = findFirstMatchingAttachment(character, accAttachment.Name)
+        if charAttachment then
+            local weld = Instance.new("Weld")
+            weld.Name = "AccessoryWeld"
+            weld.Part0 = handle
+            weld.Part1 = charAttachment.Parent
+            weld.C0 = accAttachment.CFrame
+            weld.C1 = charAttachment.CFrame
+            weld.Parent = handle
+            return
+        end
     end
-  end
 
-  local target = character:FindFirstChild("Head") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
-  if target then
-    local weld = Instance.new("Weld")
-    weld.Name = "AccessoryWeld"
-    weld.Part0 = handle
-    weld.Part1 = target
-    weld.C0 = CFrame.new(0, 0, 0)
-    weld.Parent = handle
-  end
+    local target = character:FindFirstChild("Head") or character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+    if target then
+        local weld = Instance.new("Weld")
+        weld.Name = "AccessoryWeld"
+        weld.Part0 = handle
+        weld.Part1 = target
+        weld.C0 = CFrame.new(0, 0, 0)
+        weld.Parent = handle
+    end
 end
 
+-------------------------------------------------
+-- Load catalog accessory by ID
+-------------------------------------------------
 local function loadAccessory(character, assetId)
-  task.spawn(function()
-    local success, objects = pcall(function()
-      return game:GetObjects("rbxassetid://" .. tostring(assetId))
+    task.spawn(function()
+        local success, objects = pcall(function()
+            return game:GetObjects("rbxassetid://" .. tostring(assetId))
+        end)
+
+        if not success or not objects or not objects[1] then return end
+
+        local item = objects[1]
+        local accessory = item:IsA("Accessory") and item or item:FindFirstChildOfClass("Accessory")
+
+        if accessory then
+            addAccoutrement(character, accessory:Clone())
+        end
     end)
-
-    if not success or not objects or not objects[1] then return end
-
-    local item = objects[1]
-    local accessory = item:IsA("Accessory") and item or item:FindFirstChildOfClass("Accessory")
-
-    if accessory then
-      addAccoutrement(character, accessory:Clone())
-    end
-  end)
 end
 
+-------------------------------------------------
+-- Clothing Helper
+-------------------------------------------------
 local function Cloth(Id1, Id2, Id3, Parent)
   if Id1 ~= nil then
     local S = Instance.new("Shirt", Parent)
@@ -140,14 +195,6 @@ local function Cloth(Id1, Id2, Id3, Parent)
   end
 end
 
-local function D(...)
-  for _, v in ipairs({...}) do
-    if v then
-      v:Destroy() 
-    end
-  end
-end
-
 -- Ability Icons & Theme Configs
 SBeh.Abilities.Slash.Icon = JBeh.Abilities.Slash.Icon
 SBeh.Abilities.Behead.Icon = JBeh.Abilities.Behead.Icon
@@ -158,6 +205,9 @@ SCon.Sounds["TerrorRadiusThemes"] = JCon.Sounds.TerrorRadiusThemes
 SCon.DisplayName = "Baldi"
 SCon.RenderImage = JCon.RenderImage
 
+-------------------------------------------------
+-- DoMorph Execution
+-------------------------------------------------
 local function DoMorph(P, Name)
   if P.Name == Name and P:GetAttribute("SkinName") == "" then
     -- Clean original Slasher extra parts
@@ -185,7 +235,7 @@ local function DoMorph(P, Name)
       if face then face:Destroy() end
     end
 
-    -- Set Robloxian 2.0 limbs to Baldi's tan skin tone
+    -- Set Robloxian limbs to Baldi skin tone
     local skinColor = Color3.fromRGB(240, 180, 130)
     for _, limbName in ipairs({"Torso", "Right Leg", "Left Leg", "Right Arm", "Left Arm"}) do
       local limb = P:FindFirstChild(limbName)
@@ -203,8 +253,8 @@ local function DoMorph(P, Name)
       P
     )
 
-    -- Attach Baldi Head Accessory
-    loadAccessory(P, 17059824476)
+    -- Attach Mad Baldi Head Accessory
+    loadAccessory(P, 18280156671)
 
     -- Attach Slasher Weapons
     if P:FindFirstChild("Machete") then
@@ -224,4 +274,3 @@ end
 Player.CharacterAdded:Connect(function(Rig)
   DoMorph(Rig, "Slasher")
 end)
-
